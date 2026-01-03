@@ -58,7 +58,7 @@ class VerificationController {
       });
 
       // Notify admin (in real app, this would trigger email/notification)
-      this.notifyAdminForVerification(userId);
+    await this.notifyAdminForVerification(userId);
 
       res.json({
         success: true,
@@ -693,10 +693,9 @@ class VerificationController {
     return steps;
   }
 
-  notifyAdminForVerification(userId) {
-    console.log(`Admin notification: User ${userId} submitted for verification`);
-    // In real app, send email/notification to admin team
-  }
+  notifyAdminForVerification = async (userId) => {
+  console.log(`Admin notification: User ${userId} submitted for verification`);
+}
 
   sendVerificationApprovalEmail(user) {
     console.log(`Email sent: Verification approved for ${user.email}`);

@@ -4,6 +4,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const auth = require('../middleware/auth');
 
 // Signup endpoint for Screen 1
 router.post('/signup', [
@@ -130,9 +131,9 @@ router.post('/signup', [
 });
 
 // Update identity documents (Screen 2)
-router.post('/:userId/identity', async (req, res) => {
+router.post('/identity',auth, async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user._id;
     const updateData = {};
 
     // Update documents if provided
@@ -199,9 +200,9 @@ router.post('/:userId/identity', async (req, res) => {
 });
 
 // Update facial verification (Screen 3)
-router.post('/:userId/facial', async (req, res) => {
+router.post('/facial', auth, async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user._id;
     const updateData = {};
 
     // Update facial verification images
