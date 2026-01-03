@@ -189,7 +189,7 @@ router.post('/multiple', auth, upload.array('images', 10), async (req, res) => {
 });
 
 // Upload base64 image (for mobile app)
-router.post('/base64', auth, async (req, res) => {
+router.post('/base64',/*  auth, */ async (req, res) => {
   try {
     const { image, fileName, folder = 'signup_app/base64' } = req.body;
     
@@ -248,7 +248,7 @@ router.post('/base64', auth, async (req, res) => {
 });
 
 // Upload facial verification images (multiple base64)
-router.post('/facial', auth, async (req, res) => {
+router.post('/facial',/*  auth, */ async (req, res) => {
   try {
     const { images } = req.body; // Array of base64 images
     

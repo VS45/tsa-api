@@ -127,16 +127,28 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+// Hash password before saving - WITHOUT 'next' function
+userSchema.pre('save', async function() {
+  // Only hash the password if it's modified (or new)
+  if (!this.isModified('password')) {
+    return; // Simply return without calling next
+  }
   
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
+    // No need to call next, Mongoose will continue automatically
   } catch (error) {
-    next(error);
+    // Throw the error - Mongoose will catch it and abort the save operation
+    throw error;
+  }
+});
+
+// Alternative approach: Using post-save or pre-validate
+userSchema.pre('validate', async function() {
+  // This runs before validation, also doesn't need 'next'
+  if (this.isModified('password') && this.password.length < 8) {
+    throw new Error('Password must be at least 8 characters');
   }
 });
 
@@ -151,21 +163,33 @@ userSchema.methods.isLocked = function() {
 };
 
 // Increment login attempts
-userSchema.methods.incrementLoginAttempts = function() {
+userSchema.methods.incrementLoginAttempts = async function() {
+  // If lock has expired, reset attempts
   if (this.lockUntil && this.lockUntil < Date.now()) {
-    return this.updateOne({
-      $set: { loginAttempts: 1 },
-      $unset: { lockUntil: 1 }
-    });
+    this.loginAttempts = 1;
+    this.lockUntil = undefined;
+    return this.save();
   }
   
-  const updates = { $inc: { loginAttempts: 1 } };
+  // Increment login attempts
+  this.loginAttempts += 1;
   
-  if (this.loginAttempts + 1 >= 5 && !this.isLocked()) {
-    updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // Lock for 2 hours
+  // Lock account if attempts reach 5
+  if (this.loginAttempts >= 5) {
+    this.lockUntil = Date.now() + (2 * 60 * 60 * 1000); // Lock for 2 hours
   }
   
-  return this.updateOne(updates);
+  return this.save();
 };
+
+// Virtual for full address
+userSchema.virtual('fullAddress').get(function() {
+  return `${this.address}, ${this.city}, ${this.state}, ${this.country}`.trim();
+});
+
+// Add an index for better performance
+userSchema.index({ email: 1 });
+userSchema.index({ username: 1 });
+userSchema.index({ verificationStatus: 1 });
 
 module.exports = mongoose.model('User', userSchema);
