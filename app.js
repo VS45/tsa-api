@@ -10,7 +10,10 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const verificationRoutes = require('./routes/verification');
 const uploadRoutes = require('./routes/upload');
-
+const assetRoutes = require('./routes/assets');
+const transactionRoutes = require('./routes/transactions');
+const portfolioRoutes = require('./routes/portfolio');
+const marketRoutes = require('./routes/market');
 const app = express();
 
 // Connect to database
@@ -55,7 +58,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/upload', uploadRoutes);
-
+// Add after existing routes
+app.use('/api/assets', assetRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/market', marketRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
