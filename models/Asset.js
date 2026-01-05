@@ -81,7 +81,7 @@ const assetSchema = new mongoose.Schema({
 });
 
 // Compound index for user assets
-assetSchema.index({ userId: 1, symbol: 1 }, { unique: true });
+assetSchema.index({ userId: 1, symbol: 1 });
 assetSchema.index({ userId: 1, isSelected: 1 });
 assetSchema.index({ userId: 1, isHidden: 1 });
 

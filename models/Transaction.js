@@ -76,8 +76,6 @@ const transactionSchema = new mongoose.Schema({
 
 // Indexes for optimized queries
 transactionSchema.index({ userId: 1, createdAt: -1 });
-transactionSchema.index({ userId: 1, type: 1, status: 1 });
-transactionSchema.index({ transactionHash: 1 }, { unique: true, sparse: true });
 transactionSchema.index({ 'fromAsset.symbol': 1, 'toAsset.symbol': 1 });
 
 // Pre-save hook to add description if not provided

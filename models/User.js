@@ -187,9 +187,6 @@ userSchema.virtual('fullAddress').get(function() {
   return `${this.address}, ${this.city}, ${this.state}, ${this.country}`.trim();
 });
 
-// Add an index for better performance
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
 userSchema.index({ verificationStatus: 1 });
 
 module.exports = mongoose.model('User', userSchema);
