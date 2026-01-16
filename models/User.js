@@ -30,6 +30,12 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: [8, 'Password must be at least 8 characters']
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin', 'super_admin', 'merchant'],
+    default: 'user'
+
+  },
   phoneNumber: {
     type: String,
     required: [true, 'Phone number is required']
@@ -44,7 +50,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Address is required']
   },
-  
+
   // Profile
   profilePhoto: {
     url: String,
@@ -55,7 +61,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  
+
   // Screen 2: Identity Verification Documents
   documents: {
     driversLicense: {
@@ -78,7 +84,7 @@ const userSchema = new mongoose.Schema({
       verifiedAt: Date
     }
   },
-  
+
   // Screen 3: Facial Verification
   facialVerification: {
     faceFront: { url: String, publicId: String, embeddings: [Number] },
@@ -90,7 +96,7 @@ const userSchema = new mongoose.Schema({
     verified: Boolean,
     verifiedAt: Date
   },
-  
+
   // Verification Status
   verificationStatus: {
     type: String,
@@ -98,14 +104,14 @@ const userSchema = new mongoose.Schema({
     default: 'pending'
   },
   verificationNotes: String,
-  
+
   // Account Status
   accountStatus: {
     type: String,
     enum: ['active', 'inactive', 'suspended', 'deleted'],
     default: 'active'
   },
-  
+
   // Metadata
   lastLogin: Date,
   loginAttempts: {
@@ -113,7 +119,7 @@ const userSchema = new mongoose.Schema({
     default: 0
   },
   lockUntil: Date,
-  
+
   // Timestamps
   createdAt: {
     type: Date,
@@ -128,12 +134,12 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving - WITHOUT 'next' function
-userSchema.pre('save', async function() {
+userSchema.pre('save', async function () {
   // Only hash the password if it's modified (or new)
   if (!this.isModified('password')) {
     return; // Simply return without calling next
   }
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -145,7 +151,7 @@ userSchema.pre('save', async function() {
 });
 
 // Alternative approach: Using post-save or pre-validate
-userSchema.pre('validate', async function() {
+userSchema.pre('validate', async function () {
   // This runs before validation, also doesn't need 'next'
   if (this.isModified('password') && this.password.length < 8) {
     throw new Error('Password must be at least 8 characters');
@@ -153,37 +159,37 @@ userSchema.pre('validate', async function() {
 });
 
 // Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Method to check if account is locked
-userSchema.methods.isLocked = function() {
+userSchema.methods.isLocked = function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 };
 
 // Increment login attempts
-userSchema.methods.incrementLoginAttempts = async function() {
+userSchema.methods.incrementLoginAttempts = async function () {
   // If lock has expired, reset attempts
   if (this.lockUntil && this.lockUntil < Date.now()) {
     this.loginAttempts = 1;
     this.lockUntil = undefined;
     return this.save();
   }
-  
+
   // Increment login attempts
   this.loginAttempts += 1;
-  
+
   // Lock account if attempts reach 5
   if (this.loginAttempts >= 5) {
     this.lockUntil = Date.now() + (2 * 60 * 60 * 1000); // Lock for 2 hours
   }
-  
+
   return this.save();
 };
 
 // Virtual for full address
-userSchema.virtual('fullAddress').get(function() {
+userSchema.virtual('fullAddress').get(function () {
   return `${this.address}, ${this.city}, ${this.state}, ${this.country}`.trim();
 });
 

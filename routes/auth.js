@@ -56,7 +56,7 @@ router.post('/signup', [
       if (existingUser.phoneNumber === req.body.phoneNumber) {
         errors.push({ field: 'phoneNumber', message: 'Phone number already registered' });
       }
-      
+
       return res.status(400).json({
         success: false,
         errors
@@ -66,11 +66,11 @@ router.post('/signup', [
     // Check referral code if provided
     let referredBy = null;
     if (req.body.referralCode) {
-      const referrer = await User.findOne({ 
+      const referrer = await User.findOne({
         referralCode: req.body.referralCode,
-        accountStatus: 'active' 
+        accountStatus: 'active'
       });
-      
+
       if (referrer) {
         referredBy = referrer._id;
       }
@@ -78,8 +78,8 @@ router.post('/signup', [
 
     // Generate unique referral code for new user
     const generateReferralCode = () => {
-      return Math.random().toString(36).substring(2, 8).toUpperCase() + 
-             Math.random().toString(36).substring(2, 4).toUpperCase();
+      return Math.random().toString(36).substring(2, 8).toUpperCase() +
+        Math.random().toString(36).substring(2, 4).toUpperCase();
     };
 
     // Create new user
@@ -93,6 +93,7 @@ router.post('/signup', [
       state: req.body.state,
       city: req.body.city,
       address: req.body.address,
+      role: 'user',
       referralCode: generateReferralCode(),
       referredBy: referredBy,
       profilePhoto: req.body.profilePhoto ? {
@@ -131,7 +132,7 @@ router.post('/signup', [
 });
 
 // Update identity documents (Screen 2)
-router.post('/identity',auth, async (req, res) => {
+router.post('/identity', auth, async (req, res) => {
   try {
     const userId = req.user._id;
     const updateData = {};
@@ -268,9 +269,9 @@ async function triggerVerificationProcess(userId) {
   // 2. Facial recognition comparison
   // 3. BVN verification with financial institutions
   // 4. Manual review by admin team
-  
+
   console.log(`Verification process triggered for user: ${userId}`);
-  
+
   // For now, we'll simulate a background process
   setTimeout(async () => {
     try {
@@ -290,10 +291,10 @@ async function triggerVerificationProcess(userId) {
           'facialVerification.verificationScore': 0.95
         }
       });
-      
+
       // Send verification completion email
       await sendVerificationEmail(userId);
-      
+
     } catch (error) {
       console.error('Verification process error:', error);
     }
@@ -343,7 +344,7 @@ router.post('/login', [
     if (!isMatch) {
       // Increment login attempts
       await user.incrementLoginAttempts();
-      
+
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -362,7 +363,7 @@ router.post('/login', [
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -372,6 +373,7 @@ router.post('/login', [
       message: 'Login successful',
       data: {
         userId: user._id,
+        role: user.role,
         token,
         name: user.name,
         email: user.email,
