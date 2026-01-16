@@ -14,6 +14,7 @@ const assetRoutes = require('./routes/assets');
 const transactionRoutes = require('./routes/transactions');
 const portfolioRoutes = require('./routes/portfolio');
 const marketRoutes = require('./routes/market');
+const productRoutes = require('./routes/products');
 const app = express();
 
 // Connect to database
@@ -63,6 +64,7 @@ app.use('/api/assets', assetRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/products', productRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -83,7 +85,12 @@ app.get('/api', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       verification: '/api/verification',
-      upload: '/api/upload'
+      upload: '/api/upload',
+      assets: '/api/assets',
+      transactions: '/api/transactions',
+      portfolio: '/api/portfolio',
+      market: '/api/market',
+      products: '/api/products'
     }
   });
 });
@@ -105,7 +112,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error('Error stack:', err.stack);
   console.error('Error details:', err);
-  
+
   // Handle Mongoose validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({
@@ -172,18 +179,18 @@ app.use((err, req, res, next) => {
   // Default error
   const statusCode = err.status || 500;
   const message = err.message || 'Internal Server Error';
-  
+
   const errorResponse = {
     success: false,
     message
   };
-  
+
   // Add stack trace in development
   if (process.env.NODE_ENV === 'development') {
     errorResponse.stack = err.stack;
     errorResponse.fullError = err;
   }
-  
+
   res.status(statusCode).json(errorResponse);
 });
 
