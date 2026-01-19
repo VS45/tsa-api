@@ -3,31 +3,28 @@ const router = express.Router();
 const productController = require('../controllers/productController');
 const categoryController = require('../controllers/categoryController');
 const adminAuth = require('../middleware/adminAuth');
+const auth = require('../middleware/auth');
 const multer = require('multer');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
     fileFilter: function (req, file, cb) {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-            return cb(new Error('Only image files are allowed!'), false);
+        const filetypes = /jpeg|jpg|png|gif|webp/;
+        const mimetype = filetypes.test(file.mimetype);
+
+        if (mimetype) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'));
         }
-        cb(null, true);
     }
 });
 
 // All routes require authentication
-router.use(adminAuth);
+router.use(auth);
 
 // Product routes
 router.post('/', upload.array('images', 10), productController.createProduct);
@@ -47,8 +44,9 @@ router.get('/category/tree', categoryController.getCategoryTree);
 router.get('/category/:categoryId', categoryController.getCategoryById);
 
 // Admin only routes
-router.post('/category', categoryController.createCategory);
-router.put('/category/:categoryId', categoryController.updateCategory);
+router.use(adminAuth);
+router.post('/category', upload.single('image'), categoryController.createCategory);
+router.put('/category/:categoryId', upload.single('image'), categoryController.updateCategory);
 router.delete('/category/:categoryId', categoryController.deleteCategory);
 
 module.exports = router;

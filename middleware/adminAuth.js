@@ -14,6 +14,7 @@ const adminAuth = async (req, res, next) => {
         const user = await User.findOne({
             _id: decoded.userId
         });
+
         if (!user) {
             throw new Error();
         }
@@ -24,12 +25,16 @@ const adminAuth = async (req, res, next) => {
                 message: `Account is ${user.accountStatus}. Please contact support.`
             });
         }
-        if (user.role !== 'admin' || user.role !== 'merchant') {
+
+        // FIXED: Use array includes for better readability
+        const allowedRoles = ['admin', 'merchant'];
+        if (!allowedRoles.includes(user.role)) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. Admin or merchant only.'
             });
         }
+
         req.token = token;
         req.user = user;
         next();
