@@ -30,6 +30,8 @@ router.use(auth);
 router.post('/', upload.array('images', 10), productController.createProduct);
 router.get('/', productController.getUserProducts);
 router.get('/stats', productController.getProductStats);
+router.get('/non-featured', adminAuth, productController.getNonFeaturedProducts); // Moved here
+
 router.get('/:productId', productController.getProductById);
 router.put('/:productId', upload.array('images', 10), productController.updateProduct);
 router.delete('/:productId', productController.deleteProduct);
@@ -45,6 +47,7 @@ router.get('/category/:categoryId', categoryController.getCategoryById);
 
 // Admin only routes
 router.use(adminAuth);
+router.patch('/:id/featured', productController.toggleFeatured);
 router.post('/category', upload.single('image'), categoryController.createCategory);
 router.put('/category/:categoryId', upload.single('image'), categoryController.updateCategory);
 router.delete('/category/:categoryId', categoryController.deleteCategory);

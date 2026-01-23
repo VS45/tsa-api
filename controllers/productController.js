@@ -1,10 +1,17 @@
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const uploadToCloudinary = require('../middleware/cloudinaryUpload');
 const cloudinary = require('cloudinary').v2;
 
 class ProductController {
     // Create new product
     async createProduct(req, res) {
+        console.log('=== CREATE PRODUCT DEBUG ===');
+        console.log('Request body:', req.body);
+        console.log('Request files exist:', !!(req.files && req.files.length));
+        console.log('Request files count:', req.files ? req.files.length : 0);
+        console.log('=== END DEBUG ===');
+
         try {
             const userId = req.user._id;
             const {
@@ -48,21 +55,34 @@ class ProductController {
                     const file = req.files[i];
 
                     try {
-                        // Upload to Cloudinary
-                        const result = await cloudinary.uploader.upload(file.path, {
-                            folder: 'products',
-                            transformation: [
-                                { width: 800, height: 800, crop: 'fill', quality: 'auto' }
-                            ]
-                        });
+                        // Upload to Cloudinary using buffer like in createCategory
+                        let uploadResult;
+                        if (file.buffer) {
+                            // Using buffer upload (like in createCategory)
+                            uploadResult = await uploadToCloudinary(file.buffer, 'products');
+                        } else {
+                            // Fallback to path upload
+                            uploadResult = await cloudinary.uploader.upload(file.path, {
+                                folder: 'products',
+                                transformation: [
+                                    { width: 800, height: 800, crop: 'fill', quality: 'auto' }
+                                ]
+                            });
+                        }
 
                         uploadedImages.push({
-                            url: result.secure_url,
-                            publicId: result.public_id,
+                            url: uploadResult.secure_url,
+                            publicId: uploadResult.public_id,
+                            format: uploadResult.format,
+                            width: uploadResult.width,
+                            height: uploadResult.height,
                             order: i
                         });
+
+                        console.log(`Image ${i + 1} uploaded to Cloudinary:`, uploadResult.secure_url);
                     } catch (uploadError) {
-                        console.error('Error uploading image:', uploadError);
+                        console.error('Cloudinary upload error for image:', uploadError);
+                        // Don't fail the entire request if image upload fails
                         // Continue with other images
                     }
                 }
@@ -79,6 +99,7 @@ class ProductController {
                     }
                 } catch (error) {
                     console.error('Error parsing attributes:', error);
+                    // Continue with empty attributes instead of failing
                 }
             }
 
@@ -115,14 +136,14 @@ class ProductController {
             console.error('Create product error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to create product',
-                error: error.message
+                message: error.message || 'Failed to create product'
             });
         }
     }
 
     // Get all products for user
     async getUserProducts(req, res) {
+        console.log('Get user products');
         try {
             const userId = req.user._id;
             const {
@@ -651,6 +672,82 @@ class ProductController {
             });
         }
     }
+    // Get all products that are not featured
+    async getNonFeaturedProducts(req, res) {
+        console.log('Get non-featured products');
+        try {
+            const products = await Product.find({
+                isFeatured: false
+            });
+            console.log(products);
+            res.json({
+                success: true,
+                data: products
+            });
+        } catch (error) {
+            console.error('Get non-featured products error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch products'
+            });
+        }
+    }
+    async toggleFeatured(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user._id;
+            const userRole = req.user.role;
+
+            const product = await Product.findById(id);
+
+            if (!product) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Product not found'
+                });
+            }
+
+            // Check if user owns the product or is admin
+            if (product.userId.toString() !== userId.toString() && userRole !== 'admin') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to update this product'
+                });
+            }
+
+            // Toggle featured status
+            product.isFeatured = !product.isFeatured;
+
+            // Add to featured history if tracking
+            if (product.featuredHistory) {
+                product.featuredHistory.push({
+                    date: new Date(),
+                    action: product.isFeatured ? 'added' : 'removed',
+                    by: userId
+                });
+            }
+
+            await product.save();
+
+            res.json({
+                success: true,
+                message: `Product ${product.isFeatured ? 'added to' : 'removed from'} featured`,
+                data: {
+                    productId: product._id,
+                    isFeatured: product.isFeatured,
+                    featuredAt: product.isFeatured ? new Date() : null
+                }
+            });
+        } catch (error) {
+            console.error('Toggle featured error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Server error'
+            });
+        }
+    }
+
 }
+
 
 module.exports = new ProductController();

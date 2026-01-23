@@ -111,7 +111,6 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'inactive', 'suspended', 'deleted'],
     default: 'active'
   },
-
   // Metadata
   lastLogin: Date,
   loginAttempts: {
@@ -119,16 +118,6 @@ const userSchema = new mongoose.Schema({
     default: 0
   },
   lockUntil: Date,
-
-  // Timestamps
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
 }, {
   timestamps: true
 });
