@@ -15,6 +15,7 @@ const transactionRoutes = require('./routes/transactions');
 const portfolioRoutes = require('./routes/portfolio');
 const marketRoutes = require('./routes/market');
 const productRoutes = require('./routes/products');
+const cartRoutes = require('./routes/cartRoutes');
 const app = express();
 
 // Connect to database
@@ -65,6 +66,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -90,7 +92,8 @@ app.get('/api', (req, res) => {
       transactions: '/api/transactions',
       portfolio: '/api/portfolio',
       market: '/api/market',
-      products: '/api/products'
+      products: '/api/products',
+      cart: '/api/cart'
     }
   });
 });
