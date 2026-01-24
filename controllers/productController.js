@@ -2,7 +2,7 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const uploadToCloudinary = require('../middleware/cloudinaryUpload');
 const cloudinary = require('cloudinary').v2;
-
+const mongoose = require('mongoose');
 class ProductController {
     // Create new product
     async createProduct(req, res) {
@@ -746,8 +746,410 @@ class ProductController {
             });
         }
     }
+    async getProducts(req, res) {
+        try {
+            const products = await Product.find({});
+            res.json({
+                success: true,
+                data: products
+            });
+        } catch (error) {
+            console.error('Get products error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch products'
+            });
+        }
+    }
+    // Add this method to your ProductController class
 
+    // Get products by category (public endpoint - no authentication required)
+    async getProductsByCategory(req, res) {
+        try {
+            const {
+                categoryId,
+                subcategoryId,
+                page = 1,
+                limit = 20,
+                sortBy = 'createdAt',
+                sortOrder = 'desc',
+                minPrice,
+                maxPrice,
+                type,
+                status = 'active',
+                search
+            } = req.query;
+
+            // Build query
+            const query = {};
+
+            // Filter by category
+            if (categoryId) {
+                query.category = categoryId;
+            }
+
+            // Filter by product type (Product/Service)
+            if (type && ['Product', 'Service'].includes(type)) {
+                query.type = type;
+            }
+
+            // Filter by status
+            if (status && ['active', 'inactive', 'sold_out', 'pending_review'].includes(status)) {
+                query.status = status;
+            } else {
+                // Default to active products
+                query.status = 'active';
+            }
+
+            // Price range filter
+            if (minPrice || maxPrice) {
+                query.price = {};
+                if (minPrice) query.price.$gte = parseFloat(minPrice);
+                if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+            }
+
+            // Search functionality
+            if (search) {
+                query.$or = [
+                    { name: { $regex: search, $options: 'i' } },
+                    { description: { $regex: search, $options: 'i' } },
+                    { companyName: { $regex: search, $options: 'i' } },
+                    { 'attributes.value': { $regex: search, $options: 'i' } }
+                ];
+            }
+
+            // If subcategory name is provided (for marketplace navigation)
+            if (subcategoryId && !mongoose.Types.ObjectId.isValid(subcategoryId)) {
+                // This might be a subcategory name from the frontend
+                // You can search in category names or attributes
+                const categories = await Category.find({
+                    title: { $regex: subcategoryId, $options: 'i' }
+                });
+
+                if (categories.length > 0) {
+                    const categoryIds = categories.map(cat => cat._id);
+                    query.category = { $in: categoryIds };
+                }
+            }
+
+            // Sort options
+            const sort = {};
+            const validSortFields = ['createdAt', 'updatedAt', 'price', 'name', 'views', 'sales', 'rating.average'];
+
+            if (validSortFields.includes(sortBy)) {
+                // Handle nested sort fields
+                if (sortBy.includes('.')) {
+                    const parts = sortBy.split('.');
+                    sort[parts[0]] = sort[parts[1]] = sortOrder === 'desc' ? -1 : 1;
+                } else {
+                    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+                }
+            } else {
+                // Default sort
+                sort.createdAt = sortOrder === 'desc' ? -1 : 1;
+            }
+
+            // Pagination
+            const skip = (page - 1) * limit;
+
+            // Execute query with pagination
+            const [products, total] = await Promise.all([
+                Product.find(query)
+                    .populate('category', 'title icon color type parentCategory')
+                    .sort(sort)
+                    .skip(skip)
+                    .limit(parseInt(limit))
+                    .select('-__v') // Exclude version key
+                    .lean(),
+                Product.countDocuments(query)
+            ]);
+
+            // Calculate pagination info
+            const totalPages = Math.ceil(total / limit);
+
+            // Get category details if categoryId is provided
+            let categoryDetails = null;
+            if (categoryId) {
+                categoryDetails = await Category.findById(categoryId)
+                    .select('title description icon color type parentCategory productCount');
+            }
+
+            // Format response with aggregation for statistics
+            const priceStats = await Product.aggregate([
+                { $match: query },
+                {
+                    $group: {
+                        _id: null,
+                        minPrice: { $min: '$price' },
+                        maxPrice: { $max: '$price' },
+                        avgPrice: { $avg: '$price' },
+                        totalProducts: { $sum: 1 },
+                        totalInStock: { $sum: { $cond: [{ $gt: ['$stock', 0] }, 1, 0] } }
+                    }
+                }
+            ]);
+
+            const stats = priceStats[0] || {
+                minPrice: 0,
+                maxPrice: 0,
+                avgPrice: 0,
+                totalProducts: 0,
+                totalInStock: 0
+            };
+
+            res.json({
+                success: true,
+                message: 'Products fetched successfully',
+                data: {
+                    products,
+                    category: categoryDetails,
+                    pagination: {
+                        page: parseInt(page),
+                        limit: parseInt(limit),
+                        total,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPrevPage: page > 1
+                    },
+                    filters: {
+                        applied: {
+                            categoryId,
+                            type,
+                            status,
+                            minPrice,
+                            maxPrice,
+                            search
+                        },
+                        stats: {
+                            priceRange: {
+                                min: stats.minPrice,
+                                max: stats.maxPrice,
+                                average: stats.avgPrice
+                            },
+                            count: {
+                                total: stats.totalProducts,
+                                inStock: stats.totalInStock,
+                                outOfStock: stats.totalProducts - stats.totalInStock
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Get products by category error:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to fetch products by category'
+            });
+        }
+    }
+
+    // Get products by category tree (including subcategories)
+    async getProductsByCategoryTree(req, res) {
+        try {
+            const { categoryId } = req.params;
+            const { includeSubcategories = true } = req.query;
+
+            // Get category and its subcategories if requested
+            let categoryIds = [categoryId];
+
+            if (includeSubcategories === 'true') {
+                const categoryTree = await Category.find({
+                    $or: [
+                        { _id: categoryId },
+                        { parentCategory: categoryId }
+                    ]
+                });
+                categoryIds = categoryTree.map(cat => cat._id);
+            }
+
+            // Get products in these categories
+            const products = await Product.find({
+                category: { $in: categoryIds },
+                status: 'active'
+            })
+                .populate('category', 'title icon color')
+                .sort({ createdAt: -1 })
+                .lean();
+
+            // Get category details
+            const mainCategory = await Category.findById(categoryId)
+                .select('title description icon color type parentCategory productCount')
+                .lean();
+
+            // Group products by subcategory
+            const productsBySubcategory = {};
+            const allProducts = [];
+
+            for (const product of products) {
+                allProducts.push(product);
+
+                if (product.category) {
+                    const catId = product.category._id.toString();
+                    if (!productsBySubcategory[catId]) {
+                        productsBySubcategory[catId] = {
+                            category: product.category,
+                            products: []
+                        };
+                    }
+                    productsBySubcategory[catId].products.push(product);
+                }
+            }
+
+            res.json({
+                success: true,
+                message: 'Products fetched successfully',
+                data: {
+                    mainCategory,
+                    products: allProducts,
+                    groupedBySubcategory: productsBySubcategory,
+                    statistics: {
+                        totalProducts: allProducts.length,
+                        totalSubcategories: Object.keys(productsBySubcategory).length,
+                        productsByStatus: {
+                            inStock: allProducts.filter(p => p.stock > 0).length,
+                            outOfStock: allProducts.filter(p => p.stock === 0).length
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Get products by category tree error:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to fetch products by category tree'
+            });
+        }
+    }
+
+    // Get marketplace products (public endpoint for marketplace)
+    async getMarketplaceProducts(req, res) {
+        try {
+            const {
+                category,
+                subcategory,
+                type,
+                location,
+                minPrice,
+                maxPrice,
+                sort = 'recent',
+                page = 1,
+                limit = 20,
+                search
+            } = req.query;
+
+            // Build query
+            const query = { status: 'active' };
+
+            // Category filter
+            if (category) {
+                if (mongoose.Types.ObjectId.isValid(category)) {
+                    query.category = category;
+                } else {
+                    // Search by category name
+                    const categories = await Category.find({
+                        title: { $regex: category, $options: 'i' }
+                    });
+                    if (categories.length > 0) {
+                        query.category = { $in: categories.map(c => c._id) };
+                    }
+                }
+            }
+
+            // Type filter (Product/Service)
+            if (type && ['Product', 'Service'].includes(type)) {
+                query.type = type;
+            }
+
+            // Location filter
+            if (location) {
+                query.location = { $regex: location, $options: 'i' };
+            }
+
+            // Price range
+            if (minPrice || maxPrice) {
+                query.price = {};
+                if (minPrice) query.price.$gte = parseFloat(minPrice);
+                if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+            }
+
+            // Search
+            if (search) {
+                query.$or = [
+                    { name: { $regex: search, $options: 'i' } },
+                    { description: { $regex: search, $options: 'i' } },
+                    { companyName: { $regex: search, $options: 'i' } }
+                ];
+            }
+
+            // Sort options
+            const sortOptions = {
+                recent: { createdAt: -1 },
+                popular: { views: -1, sales: -1 },
+                price_low: { price: 1 },
+                price_high: { price: -1 },
+                rating: { 'rating.average': -1, 'rating.count': -1 }
+            };
+
+            const sortQuery = sortOptions[sort] || sortOptions.recent;
+
+            // Pagination
+            const skip = (page - 1) * limit;
+
+            // Execute query
+            const [products, total] = await Promise.all([
+                Product.find(query)
+                    .populate('category', 'title icon color')
+                    .sort(sortQuery)
+                    .skip(skip)
+                    .limit(parseInt(limit))
+                    .lean(),
+                Product.countDocuments(query)
+            ]);
+
+            // Get featured products
+            const featuredProducts = await Product.find({
+                ...query,
+                isFeatured: true
+            })
+                .populate('category', 'title icon color')
+                .limit(5)
+                .lean();
+
+            const totalPages = Math.ceil(total / limit);
+
+            res.json({
+                success: true,
+                message: 'Marketplace products fetched successfully',
+                data: {
+                    products,
+                    featuredProducts,
+                    pagination: {
+                        page: parseInt(page),
+                        limit: parseInt(limit),
+                        total,
+                        totalPages,
+                        hasNextPage: page < totalPages,
+                        hasPrevPage: page > 1
+                    },
+                    filters: {
+                        category,
+                        type,
+                        location,
+                        priceRange: { minPrice, maxPrice },
+                        sort,
+                        search
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Get marketplace products error:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to fetch marketplace products'
+            });
+        }
+    }
 }
-
 
 module.exports = new ProductController();

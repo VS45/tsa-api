@@ -23,6 +23,10 @@ const upload = multer({
     }
 });
 
+// These routes are for marketplace browsing
+router.get('/public/category', productController.getProductsByCategory);
+router.get('/public/category/tree/:categoryId', productController.getProductsByCategoryTree);
+router.get('/public/marketplace', productController.getMarketplaceProducts);
 // All routes require authentication
 router.use(auth);
 

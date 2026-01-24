@@ -351,6 +351,21 @@ class CategoryController {
             });
         }
     }
+    async getAllCategories(req, res) {
+        try {
+            const categories = await Category.find({}).lean();
+            res.json({
+                success: true,
+                data: categories
+            });
+        } catch (error) {
+            console.error('Get all categories error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch categories'
+            });
+        }
+    }
 }
 
 module.exports = new CategoryController();
