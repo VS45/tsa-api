@@ -94,7 +94,7 @@ router.post('/signup', [
       city: req.body.city,
       address: req.body.address,
       role: 'user',
-      referralCode: generateReferralCode(),
+      referralCode: req.body.username.toLowerCase(),
       referredBy: referredBy,
       profilePhoto: req.body.profilePhoto ? {
         url: req.body.profilePhoto,
