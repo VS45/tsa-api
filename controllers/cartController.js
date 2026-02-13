@@ -14,8 +14,6 @@ class CartController {
                 user: userId,
                 status: 'active'
             })
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
 
             // If no active cart exists, create one
             if (!cart) {
@@ -128,9 +126,6 @@ class CartController {
 
             // Reload cart with populated data
             cart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Item added to cart successfully',
@@ -203,9 +198,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Cart updated successfully',
@@ -244,9 +236,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Item removed from cart successfully',
@@ -365,9 +354,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Coupon applied successfully',
@@ -405,9 +391,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Coupon removed successfully',
@@ -454,9 +437,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Shipping address updated successfully',
@@ -495,9 +475,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Billing address updated successfully',
@@ -549,9 +526,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Shipping method updated successfully',
@@ -629,9 +603,6 @@ class CartController {
                 user: userId,
                 status: 'active'
             })
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             if (!cart) {
                 return res.status(404).json({
                     success: false,
@@ -718,9 +689,6 @@ class CartController {
                 user: userId,
                 status: 'active'
             })
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             if (!cart) {
                 return res.status(404).json({
                     success: false,
@@ -776,9 +744,6 @@ class CartController {
                 user: userId,
                 status: 'active'
             })
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             if (!cart) {
                 return res.status(404).json({
                     success: false,
@@ -894,9 +859,6 @@ class CartController {
                     status: 'abandoned',
                     lastActivity: { $lt: cutoffDate }
                 })
-                    .populate('user', 'name email phoneNumber')
-                    .populate('items.product', 'name price')
-                    .populate('items.seller', 'name email')
                     .sort({ lastActivity: -1 })
                     .skip((page - 1) * limit)
                     .limit(parseInt(limit))
@@ -1031,9 +993,6 @@ class CartController {
 
             // Reload cart with populated data
             const updatedCart = await Cart.findById(cart._id)
-                .populate('items.product', 'name images price stock rating')
-                .populate('items.seller', 'name email companyName');
-
             res.json({
                 success: true,
                 message: 'Cart restored successfully',

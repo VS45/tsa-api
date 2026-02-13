@@ -220,8 +220,7 @@ class ProductController {
             const userId = req.user._id;
 
             const product = await Product.findOne({
-                _id: productId,
-                userId
+                _id: productId
             }).populate('category', 'title icon color');
 
             if (!product) {
